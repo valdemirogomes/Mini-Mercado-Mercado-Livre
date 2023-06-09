@@ -21,6 +21,7 @@ type ProductRepository interface {
 func NewProductRepository(db *sql.DB) *products {
 	return &products{db}
 }
+
 func (p products) CreateProduct(product model.Product) (*model.Product, error) {
 
 	statement, err := p.db.Prepare(
@@ -45,13 +46,12 @@ func (p products) CreateProduct(product model.Product) (*model.Product, error) {
 		QuantityInStock: product.QuantityInStock,
 	}
 	return &response, nil
-
 }
+
 func (p products) GetAll() ([]model.Product, error) {
 	rows, err := p.db.Query("select * from tb_product")
 	if err != nil {
 		return nil, err
-
 	}
 
 	defer rows.Close()
@@ -64,12 +64,11 @@ func (p products) GetAll() ([]model.Product, error) {
 		if err = rows.Scan(&product.ID, &product.Title, &product.Price, &product.QuantityInStock); err != nil {
 			return nil, err
 		}
-
 		products = append(products, product)
 	}
 	return products, nil
-
 }
+
 func (p products) GetById(ID uint64) (model.Product, error) {
 
 	row, err := p.db.Query("select idtb_product, title, price, quantity_in_stock from tb_product where idtb_product = ?", ID)
@@ -88,7 +87,6 @@ func (p products) GetById(ID uint64) (model.Product, error) {
 			&prd.QuantityInStock,
 		); err != nil {
 			return model.Product{}, err
-
 		}
 	}
 	return prd, nil
@@ -104,7 +102,6 @@ func (p products) UpdateProduct(ID uint64, product model.Product) (model.Product
 	_, err = statement.Exec(&product.Title, &product.Price, &product.QuantityInStock, ID)
 	if err != nil {
 		return model.Product{}, err
-
 	}
 
 	response := model.Product{
@@ -114,8 +111,8 @@ func (p products) UpdateProduct(ID uint64, product model.Product) (model.Product
 		QuantityInStock: product.QuantityInStock,
 	}
 	return response, nil
-
 }
+
 func (p products) DeleteProduct(ID uint64) error {
 	statement, err := p.db.Prepare("delete from tb_product where idtb_product = ? ")
 	if err != nil {
@@ -125,11 +122,10 @@ func (p products) DeleteProduct(ID uint64) error {
 	_, err = statement.Exec(ID)
 	if err != nil {
 		return err
-
 	}
-
 	return nil
 }
+
 func (p products) ProductValidate(productID uint64) (model.Product, error) {
 	row, err := p.db.Query("select idtb_product, title, price, quantity_in_stock from tb_product where idtb_product = ?", productID)
 	if err != nil {

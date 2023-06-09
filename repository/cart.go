@@ -21,7 +21,7 @@ type CartRepository interface {
 	UpdateInventoryColumn(quantity int64, idCart uint64) error
 	SubtractOfItems(IDCart uint64) (float64, int, error)
 	CartValidate(cartID uint64) error
-	UpdateColumnPriceFinal(ID, ValueFinal uint64) (float64, error)
+	UpdateColumnPriceFinal(ID uint64, ValueFinal float64) (float64, error)
 	CheckoutValidate(cartID uint64) ([]dto.CheckoutValidate, error)
 	AjustCart(cart model.Cart) model.Cart
 	DeleteCart(ID uint64) error
@@ -31,9 +31,6 @@ func NewCartRepository(db *sql.DB) *cart {
 	return &cart{db}
 }
 
-//func recebe carrinho e retorna um carrinho
-
-// Adiciona o carrinho com produtos
 func (c cart) AddProductToCart(cart model.Cart) (model.Cart, error) {
 	var IDCart, _ = c.CreateCart()
 	detail := []model.Details{}
@@ -51,7 +48,6 @@ func (c cart) AddProductToCart(cart model.Cart) (model.Cart, error) {
 
 			statement.Exec(products.IDProduct, IDCart, products.Quantity)
 			detail = append(detail, model.Details{IDProduct: products.IDProduct, Quantity: products.Quantity})
-
 		}
 	}
 	cartResponse := model.Cart{
@@ -91,7 +87,6 @@ func (c cart) GetCartById(ID uint64) ([]model.CartResponse, error) {
 			return nil, err
 		}
 		cart = append(cart, c)
-
 	}
 	return cart, nil
 }
@@ -105,10 +100,8 @@ func (c cart) Checkout(IDCart uint64) (dto.Checkout, error) {
 	}
 
 	return dto.Checkout{Price: result}, nil
-
 }
 
-// Realiza a subtracao dos itens em estoque com os do carrinho
 func (c cart) SubtractOfItems(IDCart uint64) (float64, int, error) {
 
 	rows, err := c.db.Query(`select
@@ -129,25 +122,21 @@ func (c cart) SubtractOfItems(IDCart uint64) (float64, int, error) {
 
 	defer rows.Close()
 
-	var stockFinal int64
-	var priceFinal int64
-	var result uint64
+	var stockFinal, priceFinal, result float64
 	var product model.Purchase
 	for rows.Next() {
 		if err = rows.Scan(&product.ID, &product.QuantityStock, &product.QuantityItems, &product.Price); err != nil {
 			return 0, 0, err
 		}
-		priceFinal = product.QuantityItems * int64(product.Price)
-		result += uint64(priceFinal)
+		priceFinal = product.QuantityItems * product.Price
+		result += priceFinal
 		stockFinal = product.QuantityStock - product.QuantityItems
-		c.UpdateInventoryColumn(stockFinal, uint64(product.ID))
+		c.UpdateInventoryColumn(int64(stockFinal), uint64(product.ID))
 	}
 	price, _ := c.UpdateColumnPriceFinal(IDCart, result)
-
 	return price, int(product.QuantityItems), nil
 }
 
-// vai atualizar a coluna de quantidade realizar um for
 func (c cart) UpdateInventoryColumn(quantity int64, idCart uint64) error {
 
 	statement, err := c.db.Prepare(
@@ -163,10 +152,9 @@ func (c cart) UpdateInventoryColumn(quantity int64, idCart uint64) error {
 	}
 	defer statement.Close()
 	statement.Exec(quantity, idCart)
-
 	return nil
 }
-func (c cart) UpdateColumnPriceFinal(ID, ValueFinal uint64) (float64, error) {
+func (c cart) UpdateColumnPriceFinal(ID uint64, ValueFinal float64) (float64, error) {
 	statement, err := c.db.Prepare("insert into tb_price_final (idtb_cart, price_final) values (?,?)")
 	if err != nil {
 		return 0, err
@@ -176,11 +164,8 @@ func (c cart) UpdateColumnPriceFinal(ID, ValueFinal uint64) (float64, error) {
 	_, err = statement.Exec(ID, ValueFinal)
 	if err != nil {
 		return 0, err
-
 	}
-
 	return float64(ValueFinal), nil
-
 }
 
 func (c cart) CreateCart() (int64, error) {
@@ -200,14 +185,12 @@ func (c cart) CreateCart() (int64, error) {
 	}
 
 	ID, err := result.LastInsertId()
-
 	if err != nil {
 		return 0, err
 	}
-
 	return ID, err
-
 }
+
 func (c cart) CartValidate(cartID uint64) error {
 	row, err := c.db.Query(`select 
 	count(*)
@@ -228,16 +211,14 @@ func (c cart) CartValidate(cartID uint64) error {
 			&count,
 		); err != nil {
 			return err
-
 		}
 	}
 	if count == 0 {
 		return errors.New("carrinho nao encontrado")
-
 	}
 	return nil
-
 }
+
 func (c cart) CheckoutValidate(cartID uint64) ([]dto.CheckoutValidate, error) {
 	rows, err := c.db.Query(`select 
 	c.idtb_cart, 
@@ -267,11 +248,10 @@ func (c cart) CheckoutValidate(cartID uint64) ([]dto.CheckoutValidate, error) {
 			return nil, err
 		}
 		carts = append(carts, cart)
-
 	}
 	return carts, nil
-
 }
+
 func (c cart) AjustCart(cart model.Cart) model.Cart {
 	var newProduct []model.Details
 	indices := []int{}
@@ -290,6 +270,7 @@ func (c cart) AjustCart(cart model.Cart) model.Cart {
 	newCart := model.Cart{IDCart: cart.IDCart, Products: newProduct}
 	return newCart
 }
+
 func (c cart) DeleteCart(ID uint64) error {
 	statement, err := c.db.Prepare("delete from tb_cart_tb_product where codetb_cart = ? ")
 	if err != nil {
@@ -299,8 +280,6 @@ func (c cart) DeleteCart(ID uint64) error {
 	_, err = statement.Exec(ID)
 	if err != nil {
 		return err
-
 	}
-
 	return nil
 }
